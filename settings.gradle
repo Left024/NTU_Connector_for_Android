@@ -1,0 +1,2 @@
+rootProject.name = "NTU_Connector"
+include ':app'
