@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     String IP;
     String username;
     String password;
+    String uurl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,39 +119,8 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "密码不能为空", Toast.LENGTH_SHORT).show();
             }else{
                 Thread thread = new Thread(() -> {
-                    try  {
-                        HttpURLConnection connection = null;
-                        BufferedReader reader = null;
-                        try {
-                            URL url = new URL("http://210.29.79.141:801/eportal/?c=Portal&a=login&callback=dr1003&login_method=1&user_account=%2C1%2C"+username+Net_Operators+"&user_password="+password+"&wlan_user_ip="+IP+"&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=3.3.2&v=3654");
-                            connection = (HttpURLConnection) url.openConnection();
-                            connection.setRequestMethod("GET");
-                            connection.setConnectTimeout(8000);
-                            connection.setReadTimeout(8000);
-                            InputStream in = connection.getInputStream();
-                            reader = new BufferedReader(new InputStreamReader(in));
-                            StringBuilder response = new StringBuilder();
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                response.append(line);
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        } finally {
-                            if (reader != null) {
-                                try {
-                                    reader.close();
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                            if (connection != null) {
-                                connection.disconnect();
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    uurl="http://210.29.79.141:801/eportal/?c=Portal&a=login&callback=dr1003&login_method=1&user_account=%2C1%2C"+username+Net_Operators+"&user_password="+password+"&wlan_user_ip="+IP+"&wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=3.3.2&v=3654";
+                    httpGet();
                 });
                 thread.start();
                 Toast.makeText(MainActivity.this, "已连接", Toast.LENGTH_SHORT).show();
@@ -159,9 +129,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         logout_button.setOnClickListener(v -> {
-            IP=getLocalIpAddress(MainActivity.this);
-            password=password_input.getText().toString();
-            username_input.setText(password);
+            Thread thread = new Thread(() -> {
+                IP=getLocalIpAddress(MainActivity.this);
+                uurl="http://210.29.79.141:801/eportal/?c=Portal&a=logout&callback=dr1003&login_method=1&user_account=drcom&user_password=123&ac_logout=0&register_mode=1&wlan_user_ip="+IP+"&wlan_user_ipv6=&wlan_vlan_id=0&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=ME60&jsVersion=3.3.2&v=4080";
+                httpGet();
+            });
+            thread.start();
+            Toast.makeText(MainActivity.this, "已注销", Toast.LENGTH_SHORT).show();
 
         });
     }
@@ -179,6 +153,42 @@ public class MainActivity extends AppCompatActivity {
         Net_Operators=data.getString("Net_Operator","");
         username=data.getString("username","");
         password=data.getString("password","");
+    }
+
+    public void httpGet(){
+        try  {
+            HttpURLConnection connection = null;
+            BufferedReader reader = null;
+            try {
+                URL url = new URL(uurl);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                InputStream in = connection.getInputStream();
+                reader = new BufferedReader(new InputStreamReader(in));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                if (reader != null) {
+                    try {
+                        reader.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
