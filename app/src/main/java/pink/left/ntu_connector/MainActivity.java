@@ -1,16 +1,36 @@
 package pink.left.ntu_connector;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
+import android.annotation.TargetApi;
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.permissionx.guolindev.PermissionX;
+import com.permissionx.guolindev.callback.ExplainReasonCallbackWithBeforeParam;
+import com.permissionx.guolindev.callback.ForwardToSettingsCallback;
+import com.permissionx.guolindev.callback.RequestCallback;
+import com.permissionx.guolindev.request.ExplainScope;
+import com.permissionx.guolindev.request.ForwardScope;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,6 +38,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -29,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     TextView password_input;
     Button login_button;
     Button logout_button;
+    CheckBox AutoConnect;
 
     String Net_Operators;
     String IP;
@@ -48,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
         password_input=findViewById(R.id.password_input);
         login_button=findViewById(R.id.login_button);
         logout_button=findViewById(R.id.logout_button);
+        AutoConnect=findViewById(R.id.AutoConnect);
         readData();
         switch (Net_Operators){
             case "":
@@ -128,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        //注销按钮
         logout_button.setOnClickListener(v -> {
             Thread thread = new Thread(() -> {
                 IP=getLocalIpAddress(MainActivity.this);
@@ -136,9 +160,28 @@ public class MainActivity extends AppCompatActivity {
             });
             thread.start();
             Toast.makeText(MainActivity.this, "已注销", Toast.LENGTH_SHORT).show();
-
         });
+
+        //自动重连
+        AutoConnect.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked){
+                    username=username_input.getText().toString();
+                    password=password_input.getText().toString();
+                    if(Net_Operators.equals("null")||username.equals("")||password.equals("")){
+                        Toast.makeText(MainActivity.this, "请补全登录信息", Toast.LENGTH_SHORT).show();
+                        AutoConnect.setChecked(false);
+                    }else{
+                        getPermission();
+                    }
+                }
+            }
+        });
+
     }
+
+
 
     public void saveData(){
         SharedPreferences.Editor data=getSharedPreferences("data",MODE_PRIVATE).edit();
@@ -150,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void readData(){
         SharedPreferences data=getSharedPreferences("data",MODE_PRIVATE);
-        Net_Operators=data.getString("Net_Operator","");
+        Net_Operators=data.getString("Net_Operator","null");
         username=data.getString("username","");
         password=data.getString("password","");
     }
@@ -191,6 +234,33 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void getPermission(){
+        PermissionX.init(this)
+                .permissions(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                .onExplainRequestReason(new ExplainReasonCallbackWithBeforeParam() {
+                    @Override
+                    public void onExplainReason(ExplainScope scope, List<String> deniedList, boolean beforeRequest) {
+                        scope.showRequestReasonDialog(deniedList, "需要后台位置权限才能获取 WIFI SSID", "我已明白");
+                    }
+                })
+                .onForwardToSettings(new ForwardToSettingsCallback() {
+                    @Override
+                    public void onForwardToSettings(ForwardScope scope, List<String> deniedList) {
+                        scope.showForwardToSettingsDialog(deniedList, "您需要去应用程序设置当中手动开启权限", "我已明白");
+                    }
+                })
+                .request(new RequestCallback() {
+                    @Override
+                    public void onResult(boolean allGranted, List<String> grantedList, List<String> deniedList) {
+                        if (allGranted) {
+                            Toast.makeText(MainActivity.this, "所有申请的权限都已通过", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "您拒绝了如下权限：" + deniedList, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
     /**
      * https://www.cnblogs.com/derekhan/p/11612919.html
      * 将ip的整数形式转换成ip形式
@@ -218,5 +288,33 @@ public class MainActivity extends AppCompatActivity {
             return " 获取IP出错鸟!!!!请保证是WIFI,或者请重新打开网络!\n" + ex.getMessage();
         }
         // return null;
+    }
+
+    public static String getWIFISSID(Activity activity) {
+        String ssid = "unknown id";
+
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O || Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+
+            WifiManager mWifiManager = (WifiManager) activity.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+
+            assert mWifiManager != null;
+            WifiInfo info = mWifiManager.getConnectionInfo();
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                return info.getSSID();
+            } else {
+                return info.getSSID().replace("\"", "");
+            }
+        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.O_MR1) {
+
+            ConnectivityManager connManager = (ConnectivityManager) activity.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            assert connManager != null;
+            NetworkInfo networkInfo = connManager.getActiveNetworkInfo();
+            if (networkInfo.isConnected()) {
+                if (networkInfo.getExtraInfo() != null) {
+                    return networkInfo.getExtraInfo().replace("\"", "");
+                }
+            }
+        }
+        return ssid;
     }
 }
