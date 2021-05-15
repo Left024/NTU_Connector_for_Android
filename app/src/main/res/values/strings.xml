@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">NTU_Connector</string>
+    <string name="channel_name">NTU</string>
+    <string name="channel_description">AutoBoot</string>
 </resources>

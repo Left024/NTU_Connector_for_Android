@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Written by Left  |  Version 0.1"
+        android:text="Written by Left  |  Version 0.2"
         android:layout_marginBottom="15dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
@@ -168,7 +168,7 @@
         android:id="@+id/AutoConnect"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="自动重连"
+        android:text="连接至wifi时自动连接"
         android:layout_marginTop="15dp"
         app:layout_constraintTop_toBottomOf="@+id/login_layout"
         app:layout_constraintRight_toRightOf="parent"

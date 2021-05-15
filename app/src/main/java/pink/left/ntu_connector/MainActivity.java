@@ -8,7 +8,10 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -17,6 +20,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -38,6 +42,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.channels.NetworkChannel;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -57,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
     String username;
     String password;
     String uurl;
+
+    Boolean AutoConnect_isChecked;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +95,10 @@ public class MainActivity extends AppCompatActivity {
         }
         username_input.setText(username);
         password_input.setText(password);
+        AutoConnect.setChecked(AutoConnect_isChecked);
+        if (AutoConnect_isChecked){
+            startService();
+        }
 
         //校园网选项框
         NTU_Button.setOnClickListener(v -> {
@@ -160,6 +171,9 @@ public class MainActivity extends AppCompatActivity {
             });
             thread.start();
             Toast.makeText(MainActivity.this, "已注销", Toast.LENGTH_SHORT).show();
+            /**
+            IP=getLocalIpAddress(MainActivity.this);
+            username_input.setText(IP);**/
         });
 
         //自动重连
@@ -173,8 +187,15 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, "请补全登录信息", Toast.LENGTH_SHORT).show();
                         AutoConnect.setChecked(false);
                     }else{
+                        AutoConnect_isChecked=true;
+                        saveData();
                         getPermission();
+                        startService();
                     }
+                }else{
+                    AutoConnect_isChecked=false;
+                    saveData();
+                    stopService();
                 }
             }
         });
@@ -188,6 +209,7 @@ public class MainActivity extends AppCompatActivity {
         data.putString("Net_Operator",Net_Operators);
         data.putString("username",username);
         data.putString("password",password);
+        data.putBoolean("AutoConnect",AutoConnect_isChecked);
         data.apply();
     }
 
@@ -196,6 +218,7 @@ public class MainActivity extends AppCompatActivity {
         Net_Operators=data.getString("Net_Operator","null");
         username=data.getString("username","");
         password=data.getString("password","");
+        AutoConnect_isChecked=data.getBoolean("AutoConnect",false);
     }
 
     public void httpGet(){
@@ -237,12 +260,6 @@ public class MainActivity extends AppCompatActivity {
     public void getPermission(){
         PermissionX.init(this)
                 .permissions(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                .onExplainRequestReason(new ExplainReasonCallbackWithBeforeParam() {
-                    @Override
-                    public void onExplainReason(ExplainScope scope, List<String> deniedList, boolean beforeRequest) {
-                        scope.showRequestReasonDialog(deniedList, "需要后台位置权限才能获取 WIFI SSID", "我已明白");
-                    }
-                })
                 .onForwardToSettings(new ForwardToSettingsCallback() {
                     @Override
                     public void onForwardToSettings(ForwardScope scope, List<String> deniedList) {
@@ -256,6 +273,7 @@ public class MainActivity extends AppCompatActivity {
                             Toast.makeText(MainActivity.this, "所有申请的权限都已通过", Toast.LENGTH_SHORT).show();
                         } else {
                             Toast.makeText(MainActivity.this, "您拒绝了如下权限：" + deniedList, Toast.LENGTH_SHORT).show();
+                            AutoConnect.setChecked(false);
                         }
                     }
                 });
@@ -290,31 +308,19 @@ public class MainActivity extends AppCompatActivity {
         // return null;
     }
 
-    public static String getWIFISSID(Activity activity) {
-        String ssid = "unknown id";
+    public void startService(){
+        Intent startIntent =new Intent(this,NTU_AutoConnect.class);
+        startService(startIntent);
+    }
 
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O || Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    public void stopService(){
+        Intent stopIntent = new Intent(this,NTU_AutoConnect.class);
+        stopService(stopIntent);
+    }
 
-            WifiManager mWifiManager = (WifiManager) activity.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-
-            assert mWifiManager != null;
-            WifiInfo info = mWifiManager.getConnectionInfo();
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                return info.getSSID();
-            } else {
-                return info.getSSID().replace("\"", "");
-            }
-        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.O_MR1) {
-
-            ConnectivityManager connManager = (ConnectivityManager) activity.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-            assert connManager != null;
-            NetworkInfo networkInfo = connManager.getActiveNetworkInfo();
-            if (networkInfo.isConnected()) {
-                if (networkInfo.getExtraInfo() != null) {
-                    return networkInfo.getExtraInfo().replace("\"", "");
-                }
-            }
-        }
-        return ssid;
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopService();
     }
 }
